@@ -49,5 +49,5 @@ The portal will be active locally at: 👉 **`http://127.0.0.1:5000`**
 
 Open deployed project in website 
 ```bash
-https://wildfire-ai-intelligence.vercel.app/?_vercel_share=YH7YlP8TyLApkbzqH3kRRf0kc4807Pcq
+https://wildfire-ai-intelligence-kijq97k3y-hamsavenibs04-2960s-projects.vercel.app/
 ```
