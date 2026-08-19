@@ -1,4 +1,4 @@
-# Forest Safety & Visitor Management Portal
+# Wildfire AI Intelligence
 
 An interactive web application for real-time Forest Reserve Safety Monitoring, Environmental Risk Calculation, Specific Forest Region Search, Visitor Safety Assistant, and Tourist Entry Pass Database Management.
 
@@ -47,10 +47,4 @@ The portal will be active locally at: 👉 **`http://127.0.0.1:5000`**
 
 ## ☁️ Deploying to Vercel
 
-1. Install the Vercel CLI or connect your GitHub repository to Vercel.
-2. Ensure environment variables (such as `GROQ_API_KEY`) are set in your Vercel Project Settings if desired.
-3. Deploy directly:
-```bash
-vercel
-```
-Vercel automatically detects `vercel.json` and builds the application using `@vercel/python`.
+Open deployed project in website `https://wildfire-ai-intelligence.vercel.app/?_vercel_share=YH7YlP8TyLApkbzqH3kRRf0kc4807Pcq`
