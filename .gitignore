@@ -1,0 +1,36 @@
+# ==============================================================================
+# Git Ignore Rules for Forest Safety & Visitor Management Project
+# Prevents secret keys, virtual environments, database files, & binaries from being uploaded to GitHub
+# ==============================================================================
+
+# Private Secret Files (DO NOT COMMIT TO GITHUB)
+.env
+.env.local
+*.pem
+*.key
+
+# Python Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# SQLite Databases (Auto-generated at runtime)
+*.db
+tourists.db
+incidents.db
+
+# Large Zip Archives & Test Output Logs
+*.zip
+Wildfire_AI_Intelligence.zip
+chat_test_out.txt
+
+# Deployment Build Outputs
+.vercel/
+.idea/
+.vscode/

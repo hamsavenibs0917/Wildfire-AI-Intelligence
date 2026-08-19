@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wildfire AI Intelligence - Forest Telemetry & Safety Portal</title>
+  
+  <!-- Google Fonts & Leaflet Maps CSS -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Custom Modern Design System (Root Level) -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Search Autocomplete Datalist ONLY for Specific Forest Search Bar -->
+  <datalist id="specific-forest-datalist">
+    <!-- Dynamically Populated by JS for specific search -->
+  </datalist>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-icon">🔥</div>
+      <div class="brand-text">
+        <span class="brand-title">Wildfire AI Intelligence</span>
+        <span class="brand-subtitle">Reserve Telemetry & Visitor Safety</span>
+      </div>
+    </div>
+
+    <!-- Telemetry Mode & Live Alert Ticker -->
+    <div class="alert-ticker">
+      <span class="pulse-dot red"></span>
+      <span class="ticker-text" id="live-alert-text">Telemetry Active: Reserve Safety Monitoring</span>
+      <select id="telemetry-mode-switch" class="mode-switch-select" onchange="toggleTelemetryMode(this.value)">
+        <option value="live" selected>🌐 Live Weather API</option>
+        <option value="historical">📊 Historical Baseline Dataset</option>
+      </select>
+      <button class="btn-refresh-telemetry" onclick="refreshTelemetryData()" title="Refresh Telemetry Data">🔄 Refresh</button>
+    </div>
+
+    <!-- Navigation Bar -->
+    <nav class="header-nav">
+      <button class="nav-btn active" data-tab="tab-map" onclick="switchNavTab('tab-map', this)">
+        <span>🗺️</span> Interactive Map
+      </button>
+      <button class="nav-btn" data-tab="tab-tourist" onclick="switchNavTab('tab-tourist', this)">
+        <span>🎟️</span> Tourist Pass DB <span class="nav-badge" id="nav-member-badge">0</span>
+      </button>
+      <button class="nav-btn" data-tab="tab-forests" onclick="switchNavTab('tab-forests', this)">
+        <span>🌿</span> Reserve Directory
+      </button>
+      <button class="nav-btn" data-tab="tab-risk" onclick="switchNavTab('tab-risk', this)">
+        <span>📊</span> Risk & Report Generator
+      </button>
+      <button class="nav-btn" data-tab="tab-assistant" onclick="switchNavTab('tab-assistant', this)">
+        <span>💬</span> Safety Assistant
+      </button>
+      <button class="nav-btn btn-report-nav" onclick="openIncidentReportModal()">
+        <span>🚨</span> Report Incident
+      </button>
+    </nav>
+  </header>
+
+  <!-- Main Container -->
+  <main class="app-main">
+
+    <!-- --------------------------------------------------------------------- -->
+    <!-- TAB 1: INTERACTIVE MAP & SPECIFIC SEARCH DROPDOWN                    -->
+    <!-- --------------------------------------------------------------------- -->
+    <section id="tab-map" class="tab-content active">
+      <div class="map-layout">
+        
+        <!-- Interactive Leaflet Map -->
+        <div class="map-wrapper">
+          
+          <!-- Specific Forest Search Bar with Autocomplete Dropdown (ONLY Here!) -->
+          <div class="map-floating-bar">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="map-search-input" list="specific-forest-datalist" placeholder="Search specific forest reserve..." oninput="onSpecificForestSearchInput()" onchange="onSpecificForestSearchInput()">
+            </div>
+            
+            <div class="filter-select-box">
+              <select id="map-state-filter" onchange="filterMapForests()">
+                <option value="ALL">All Reserve States</option>
+                <!-- Dynamically populated states -->
+              </select>
+            </div>
+
+            <div class="filter-select-box">
+              <select id="map-risk-filter" onchange="filterMapForests()">
+                <option value="ALL">All Risk Levels</option>
+                <option value="Extreme">Extreme Risk</option>
+                <option value="High">High Risk</option>
+                <option value="Medium">Medium Risk</option>
+                <option value="Low">Low Risk</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="leaflet-map" class="map-container"></div>
+        </div>
+
+        <!-- Side / Bottom Card Sheet Drawer -->
+        <aside class="map-side-drawer" id="map-side-drawer-card">
+          <div class="drawer-header">
+            <h3>Forest Reserve Telemetry</h3>
+            <span class="drawer-count" id="drawer-forest-count">Monitored Reserve Telemetry</span>
+          </div>
+
+          <!-- Selected Forest Profile Sheet Card -->
+          <div id="active-forest-sheet" class="active-forest-sheet">
+            <div class="sheet-badge extreme" id="sheet-risk-badge">EXTREME RISK</div>
+            <h4 id="sheet-forest-name">Indravati Forest Reserve</h4>
+            <p class="sheet-state" id="sheet-forest-state">📍 Chhattisgarh, India</p>
+
+            <div class="sheet-metrics-grid">
+              <div class="sheet-metric">
+                <span class="lbl" id="lbl-mode-temp">Live Temp</span>
+                <span class="val" id="sheet-temp">36.2 °C</span>
+              </div>
+              <div class="sheet-metric">
+                <span class="lbl" id="lbl-mode-humidity">Live Humidity</span>
+                <span class="val" id="sheet-humidity">22 %</span>
+              </div>
+              <div class="sheet-metric">
+                <span class="lbl">Wind Speed</span>
+                <span class="val" id="sheet-wind">18 km/h</span>
+              </div>
+              <div class="sheet-metric">
+                <span class="lbl">Drought Index</span>
+                <span class="val" id="sheet-drought">64.5</span>
+              </div>
+            </div>
+
+            <div class="sheet-actions">
+              <button class="btn btn-primary" onclick="openTouristRegisterModalFromSheet()">🎟️ Register Visitors</button>
+              <button class="btn btn-secondary" onclick="openMergedReportTabForActiveForest()">📄 Generate Report</button>
+            </div>
+          </div>
+
+          <!-- Quick Reserve Selection List -->
+          <div class="reserve-list-container">
+            <div class="list-title">Monitored Reserve List</div>
+            <div class="reserve-scroll-list" id="map-reserve-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- --------------------------------------------------------------------- -->
+    <!-- TAB 2: TOURIST REGISTRATION, INCIDENT METRICS & DATABASE MANAGEMENT  -->
+    <!-- --------------------------------------------------------------------- -->
+    <section id="tab-tourist" class="tab-content">
+      <div class="dashboard-container">
+        
+        <!-- Metric Cards with Member Counter & Total Incidents Counter -->
+        <div class="metrics-row">
+          <div class="metric-card highlight">
+            <div class="metric-icon">👥</div>
+            <div class="metric-info">
+              <span class="metric-value" id="db-total-members">0</span>
+              <span class="metric-label">Total Group Members in Database</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon">🎟️</div>
+            <div class="metric-info">
+              <span class="metric-value" id="db-active-passes">0</span>
+              <span class="metric-label">Active Visitor Passes</span>
+            </div>
+          </div>
+
+          <div class="metric-card alert-metric">
+            <div class="metric-icon">🚨</div>
+            <div class="metric-info">
+              <span class="metric-value" id="db-total-incidents">0</span>
+              <span class="metric-label">Total Incidents (Incidents DB)</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon">🏞️</div>
+            <div class="metric-info">
+              <span class="metric-value" id="db-active-forests">0</span>
+              <span class="metric-label">Forest Reserves Occupied</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon">✅</div>
+            <div class="metric-info">
+              <span class="metric-value" id="db-checked-out">0</span>
+              <span class="metric-label">Completed Visits</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Action Header for Passes -->
+        <div class="section-action-header">
+          <div>
+            <h2>Tourist Entry Pass Database (tourists.db)</h2>
+            <p>Comprehensive record of all registered visitors, group member counts, and scannable QR passes.</p>
+          </div>
+          <div class="header-buttons">
+            <button class="btn btn-primary" onclick="openTouristRegisterModal()">➕ Register New Entry Pass</button>
+            <button class="btn btn-outline" onclick="exportTouristCSV()">📥 Export CSV Database</button>
+          </div>
+        </div>
+
+        <!-- Tourist Database Table Controls -->
+        <div class="table-controls-bar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="tourist-search-input" placeholder="Search by Pass ID, Visitor Name, Phone, or Forest..." onkeyup="renderTouristTable()">
+          </div>
+          <div class="filter-group">
+            <select id="tourist-status-filter" onchange="renderTouristTable()">
+              <option value="ALL">All Statuses</option>
+              <option value="ACTIVE">ACTIVE Only</option>
+              <option value="CHECKED_OUT">CHECKED OUT Only</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tourist Database Table -->
+        <div class="table-card">
+          <div class="table-responsive">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Pass ID</th>
+                  <th>Primary Visitor Name</th>
+                  <th>Contact Phone</th>
+                  <th>Forest Reserve</th>
+                  <th>Group Members</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                  <th>Pass QR Code</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tourist-table-body">
+                <!-- Dynamically Populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SECTION 2: EMERGENCY INCIDENTS REPORTED DATABASE TABLE -->
+        <div class="section-action-header" style="margin-top: 1.5rem;">
+          <div>
+            <h2>Emergency Incidents Reported Database (incidents.db)</h2>
+            <p>Dedicated database log storing all emergency incidents and fire hazard dispatches separately.</p>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-responsive">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Report ID</th>
+                  <th>Forest Reserve</th>
+                  <th>State</th>
+                  <th>Hazard Type</th>
+                  <th>Live Temp</th>
+                  <th>Smoke Level</th>
+                  <th>Severity</th>
+                  <th>Status</th>
+                  <th>Reported Time</th>
+                </tr>
+              </thead>
+              <tbody id="incidents-table-body">
+                <!-- Dynamically Populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- --------------------------------------------------------------------- -->
+    <!-- TAB 3: FOREST RESERVES DIRECTORY                                      -->
+    <!-- --------------------------------------------------------------------- -->
+    <section id="tab-forests" class="tab-content">
+      <div class="dashboard-container">
+        <div class="section-action-header">
+          <div>
+            <h2>Forest Reserves Directory</h2>
+            <p>Real-time weather telemetry and historical sensor baseline data across Indian forest reserves.</p>
+          </div>
+          <div class="header-buttons">
+            <button class="btn btn-outline" onclick="refreshTelemetryData()">🔄 Refresh Telemetry</button>
+          </div>
+        </div>
+
+        <!-- State Selector Bar -->
+        <div class="state-pills-bar" id="state-pills-container">
+          <!-- Dynamically Populated State Pills -->
+        </div>
+
+        <div class="forest-grid" id="forest-grid-container">
+          <!-- Dynamically Populated Cards -->
+        </div>
+      </div>
+    </section>
+
+    <!-- --------------------------------------------------------------------- -->
+    <!-- TAB 4: MERGED RISK CALCULATOR & GENERATE REPORT                       -->
+    <!-- --------------------------------------------------------------------- -->
+    <section id="tab-risk" class="tab-content">
+      <div class="dashboard-container">
+        <div class="section-action-header">
+          <div>
+            <h2>Risk Calculator & Advisory Report Generator</h2>
+            <p>Calculate live environmental risk scores and download official reports in **PDF** or **Word DOC** format.</p>
+          </div>
+        </div>
+
+        <div class="predictor-grid">
+          
+          <!-- Controls Panel -->
+          <div class="card predictor-controls">
+            <h3>Environmental Parameters & Reserve Selection</h3>
+
+            <div class="form-group">
+              <label>Select Target Forest Reserve:</label>
+              <select id="calc-forest-select" onchange="onCalcForestSelectChange()">
+                <!-- Dynamically Populated -->
+              </select>
+            </div>
+
+            <div class="slider-group">
+              <label>Ambient Temperature (°C): <strong id="lbl-temp">34.5 °C</strong></label>
+              <input type="range" id="input-temp" min="15" max="50" step="0.5" value="34.5" oninput="calculateRiskScore()">
+            </div>
+
+            <div class="slider-group">
+              <label>Relative Humidity (%): <strong id="lbl-humidity">24 %</strong></label>
+              <input type="range" id="input-humidity" min="5" max="95" step="1" value="24" oninput="calculateRiskScore()">
+            </div>
+
+            <div class="slider-group">
+              <label>Wind Speed (km/h): <strong id="lbl-wind">18.5 km/h</strong></label>
+              <input type="range" id="input-wind" min="0" max="60" step="0.5" value="18.5" oninput="calculateRiskScore()">
+            </div>
+
+            <div class="slider-group">
+              <label>Vegetation Canopy Index (NDVI): <strong id="lbl-ndvi">0.24</strong></label>
+              <input type="range" id="input-ndvi" min="0.05" max="0.95" step="0.01" value="0.24" oninput="calculateRiskScore()">
+            </div>
+
+            <div class="slider-group">
+              <label>Soil Moisture Content (%): <strong id="lbl-soil">12.0 %</strong></label>
+              <input type="range" id="input-soil" min="2" max="60" step="0.5" value="12.0" oninput="calculateRiskScore()">
+            </div>
+
+            <div class="slider-group">
+              <label>Human Footprint Rating (1-10): <strong id="lbl-human">7.5</strong></label>
+              <input type="range" id="input-human" min="1" max="10" step="0.5" value="7.5" oninput="calculateRiskScore()">
+            </div>
+
+            <div class="slider-group">
+              <label>Canopy Vegetation Profile:</label>
+              <select id="input-vegetation" onchange="calculateRiskScore()">
+                <option value="Dry Deciduous">Dry Deciduous Canopy (High Flammability)</option>
+                <option value="Scrubland">Scrubland / Thorns</option>
+                <option value="Plantation">Plantation Zone</option>
+                <option value="Dense Deciduous">Dense Deciduous</option>
+                <option value="Evergreen">Evergreen Rainforest</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Score Display Panel & Report Generation Action -->
+          <div class="card predictor-display">
+            <h3>Calculated Risk Profile</h3>
+            
+            <div class="score-circle-container">
+              <div class="score-circle" id="calc-score-circle">
+                <span class="score-num" id="calc-score-val">74%</span>
+                <span class="score-lbl">Risk Index</span>
+              </div>
+            </div>
+
+            <div class="risk-badge-large" id="calc-risk-badge">HIGH RISK</div>
+
+            <div class="factor-summary">
+              <h4>Key Risk Factor Breakdown:</h4>
+              <ul id="calc-factor-list">
+                <!-- Dynamically populated -->
+              </ul>
+            </div>
+
+            <div style="width: 100%; display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 1rem;">
+              <button class="btn btn-primary" onclick="generateMergedReportFromCalculator()">⚡ Generate Report</button>
+              <button class="btn btn-secondary" id="btn-download-pdf" style="display: none;" onclick="downloadReportAsPDF()">📥 Download PDF</button>
+              <button class="btn btn-outline" id="btn-download-doc" style="display: none;" onclick="downloadReportAsDOC()">📄 Download DOC</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Merged Report Preview Display Box -->
+        <div class="report-preview-box" id="report-preview-container" style="display: none; margin-top: 1rem;">
+          <div class="report-preview-header">
+            <span>📄 Official Wildfire AI Intelligence Advisory Document</span>
+            <button class="btn btn-outline" style="padding: 2px 8px; font-size: 0.75rem;" onclick="copyReportToClipboard()">📋 Copy Text</button>
+          </div>
+          <pre id="report-preview-text" class="report-text-pre"></pre>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- --------------------------------------------------------------------- -->
+    <!-- TAB 5: WILDFIRE AI INTELLIGENCE ASSISTANT                             -->
+    <!-- --------------------------------------------------------------------- -->
+    <section id="tab-assistant" class="tab-content">
+      <div class="chat-container-card">
+        <div class="chat-header">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div class="chat-avatar">🔥</div>
+            <div>
+              <h3>Wildfire AI Intelligence Assistant</h3>
+              <span class="chat-status">🟢 Live Telemetry & API Key Engine Active</span>
+            </div>
+          </div>
+          <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.8rem; border-color: var(--border);" onclick="clearChatHistory()">🗑️ Clear History</button>
+        </div>
+
+        <div class="chat-messages" id="chat-messages-box">
+          <div class="chat-msg bot">
+            Hello! I am your <strong>Wildfire AI Intelligence Safety Assistant</strong>.<br>
+            Ask me about specific reserve fire risks, weather telemetry, or safety protocols (e.g., <em>"What is the weather telemetry in Bandipur National Park?"</em>).
+          </div>
+        </div>
+
+        <div class="chat-quick-prompts">
+          <button onclick="sendPromptText('What is the fire risk status in Indravati Forest Reserve?')">🔥 Indravati Forest Status</button>
+          <button onclick="sendPromptText('Which reserves have low humidity and high temperature?')">🌡️ High Thermal Stress Zones</button>
+          <button onclick="sendPromptText('What are the NDMA safety directives for tourist groups?')">🎟️ Visitor Safety Directives</button>
+        </div>
+
+        <div class="chat-input-row">
+          <input type="text" id="chat-input-text" placeholder="Type your safety or reserve question here..." onkeypress="handleChatEnter(event)">
+          <button class="btn btn-primary" onclick="submitChatMessage()">Send Inquiry ➔</button>
+        </div>
+
+        <!-- SHORT AND CLEAR DISCLAIMER NOTICE -->
+        <div class="chat-disclaimer-notice">
+          ⚠️ <strong>Note:</strong> AI advisory output based on live telemetry. Verify critical safety alerts with local rangers.
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ----------------------------------------------------------------------- -->
+  <!-- MODAL 1: REGISTRATION PASS FORM                                        -->
+  <!-- ----------------------------------------------------------------------- -->
+  <div id="tourist-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🎟️ Register Tourist Entry Pass</h3>
+        <button class="modal-close" onclick="closeTouristRegisterModal()">✖</button>
+      </div>
+      
+      <form id="tourist-form" onsubmit="handleTouristFormSubmit(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Primary Visitor Name *</label>
+            <input type="text" id="form-name" required placeholder="e.g. Rajesh Kumar">
+          </div>
+
+          <div class="form-group">
+            <label>Phone Number *</label>
+            <input type="tel" id="form-phone" required placeholder="e.g. +91 98765 43210">
+          </div>
+
+          <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" id="form-email" placeholder="e.g. rajesh@example.com">
+          </div>
+
+          <div class="form-group">
+            <label>Destination Forest Reserve *</label>
+            <select id="form-forest-select" required>
+              <!-- Dynamically Populated -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Number of Group Members *</label>
+            <input type="number" id="form-members" min="1" max="50" value="1" required>
+          </div>
+
+          <div class="form-group">
+            <label>Permit Duration</label>
+            <select id="form-duration">
+              <option value="2 Hours">2 Hours</option>
+              <option value="4 Hours" selected>4 Hours</option>
+              <option value="6 Hours">6 Hours</option>
+              <option value="Full Day">Full Day (12 Hours)</option>
+            </select>
+          </div>
+
+          <div class="form-group full-width">
+            <label>Emergency Contact Phone</label>
+            <input type="tel" id="form-emergency" placeholder="e.g. +91 98765 00000">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeTouristRegisterModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Generate Pass & Save to Database</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ----------------------------------------------------------------------- -->
+  <!-- MODAL 2: SCANNABLE TOURIST PASS QR CODE MODAL                           -->
+  <!-- ----------------------------------------------------------------------- -->
+  <div id="qr-modal" class="modal-overlay">
+    <div class="modal-card qr-card-modal">
+      <div class="modal-header">
+        <h3>🎟️ Registered Visitor Entry Pass</h3>
+        <button class="modal-close" onclick="closeQRModal()">✖</button>
+      </div>
+
+      <div class="qr-pass-body">
+        <div class="qr-code-img-box">
+          <img id="qr-code-img" src="" alt="Pass QR Code">
+        </div>
+
+        <div class="qr-pass-details">
+          <h4 id="qr-pass-id">PASS-IND-8821</h4>
+          <p id="qr-pass-name">Visitor: <strong>Rahul Sharma</strong></p>
+          <p id="qr-pass-forest">Forest: <strong>Indravati Forest Reserve</strong></p>
+          <p id="qr-pass-members">Group Size: <strong>3 Members</strong></p>
+          <span class="badge badge-active" id="qr-pass-status">ACTIVE PERMIT</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeQRModal()">Close Pass</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ----------------------------------------------------------------------- -->
+  <!-- MODAL 3: INCIDENT REPORT STEPPER FLOW                                   -->
+  <!-- ----------------------------------------------------------------------- -->
+  <div id="incident-modal" class="modal-overlay">
+    <div class="modal-card stepper-modal">
+      
+      <div class="modal-header">
+        <div>
+          <h3>🚨 Report Safety Hazard / Fire Incident</h3>
+          <span class="stepper-sub-header" id="stepper-title-step">Process Step 1 of 2</span>
+        </div>
+        <button class="modal-close" onclick="closeIncidentReportModal()">✖</button>
+      </div>
+
+      <!-- Stepper Progress Bar -->
+      <div class="stepper-progress-bar">
+        <div class="step-indicator active" id="step-indicator-1">
+          <span class="step-num">1</span>
+          <span class="step-lbl">Target Forest</span>
+        </div>
+        <div class="step-line" id="step-line-1"></div>
+        <div class="step-indicator" id="step-indicator-2">
+          <span class="step-num">2</span>
+          <span class="step-lbl">Observations</span>
+        </div>
+        <div class="step-line" id="step-line-2"></div>
+        <div class="step-indicator" id="step-indicator-3">
+          <span class="step-num">3</span>
+          <span class="step-lbl">Dispatch & Confirm</span>
+        </div>
+      </div>
+
+      <!-- STEP 1: Forest & Hazard Selection -->
+      <div id="step-pane-1" class="step-pane active">
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label>Select Forest Reserve *</label>
+            <select id="report-forest-select" onchange="updateStepForestTelemetry()">
+              <!-- Dynamically Populated -->
+            </select>
+          </div>
+
+          <div class="form-group full-width">
+            <label>Hazard Type Observed *</label>
+            <div class="hazard-options-grid">
+              <label class="hazard-card-option active">
+                <input type="radio" name="hazard_type" value="Thermal Hotspot" checked>
+                <span>🔥 Thermal Hotspot Spotting</span>
+              </label>
+              <label class="hazard-card-option">
+                <input type="radio" name="hazard_type" value="Dry Leaf Accumulation">
+                <span>🍂 Dry Leaf Flammability</span>
+              </label>
+              <label class="hazard-card-option">
+                <input type="radio" name="hazard_type" value="Smoke Plume">
+                <span>💨 Dense Smoke Plume</span>
+              </label>
+              <label class="hazard-card-option">
+                <input type="radio" name="hazard_type" value="Campfire Violation">
+                <span>⛺ Unattended Campfire</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeIncidentReportModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="goToStep(2)">Next: Live Observations ➔</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Live Weather Telemetry & Notes -->
+      <div id="step-pane-2" class="step-pane">
+        <div class="step-telemetry-summary">
+          <div class="summary-box">
+            <span>Ambient Temperature</span>
+            <strong id="rep-live-temp">34.0 °C</strong>
+          </div>
+          <div class="summary-box">
+            <span>Relative Humidity</span>
+            <strong id="rep-live-humidity">24 %</strong>
+          </div>
+          <div class="summary-box">
+            <span>Wind Speed</span>
+            <strong id="rep-live-wind">18.5 km/h</strong>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Observed Smoke Intensity</label>
+            <select id="report-smoke-level">
+              <option value="Light / Haze">Light Haze</option>
+              <option value="Moderate Plume" selected>Moderate Smoke Plume</option>
+              <option value="Dense Black Smoke">Dense Black Smoke</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Assessed Severity Level</label>
+            <select id="report-severity">
+              <option value="MEDIUM">Medium Warning</option>
+              <option value="HIGH" selected>High Priority</option>
+              <option value="CRITICAL_EXTREME">Critical Emergency</option>
+            </select>
+          </div>
+
+          <div class="form-group full-width">
+            <label>Ranger Patrol Notes & Landmarks</label>
+            <textarea id="report-notes" rows="3" placeholder="Describe exact beat, distance from main road, or dry canopy conditions..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="goToStep(1)">⬅ Back</button>
+          <button class="btn btn-primary" onclick="submitIncidentReportForm()">Submit Report & Save to Incidents DB ➔</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Confirmation Screen -->
+      <div id="step-pane-3" class="step-pane">
+        <div class="step-success-card">
+          <div class="success-icon">🚨</div>
+          <h3>Incident Report Dispatched & Stored in Incidents DB!</h3>
+          <p>Official dispatch reference ID: <strong id="report-confirm-id">REP-88192</strong></p>
+          <p class="sub-text">Local quick-response fire squads have been notified and incident details stored in the dedicated incidents.db database.</p>
+          <button class="btn btn-primary" onclick="closeIncidentReportModal()">Done</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Leaflet & Main JS Client (Root Level) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
